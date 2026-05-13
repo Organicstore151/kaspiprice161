@@ -45,13 +45,17 @@ app.get("/orders", async (req, res) => {
   try {
     const now = Date.now();
     const dateTo = req.query.dateTo ? parseInt(req.query.dateTo) : now;
-    const dateFrom = req.query.dateFrom ? parseInt(req.query.dateFrom) : now - 14 * 24 * 60 * 60 * 1000;
+    const dateFrom = req.query.dateFrom
+      ? parseInt(req.query.dateFrom)
+      : now - 14 * 24 * 60 * 60 * 1000;
 
-   const allOrders = await getOrders(dateFrom, dateTo);
-   const orders = allOrders.filter(o => o.attributes.status === "COMPLETED");
+    const allOrders = await getOrders(dateFrom, dateTo);
+    const orders = allOrders.filter((o) => o.attributes.status === "COMPLETED");
 
     const result = await Promise.all(
       orders.map(async (order) => {
+        const attrs = order.attributes;
+
         const entries = await getOrderEntries(order.id);
         const items = await Promise.all(
           entries.map(async (entry) => {
@@ -63,17 +67,26 @@ app.get("/orders", async (req, res) => {
             };
           })
         );
+
+        // Форматируем дату
+        const formatDate = (timestamp) => {
+          if (!timestamp) return null;
+          return new Date(timestamp).toLocaleString("ru-KZ");
+        };
+
         return {
           orderId: order.id,
-          orderCode: order.attributes.code,
-          status: order.attributes.status,
-          state: order.attributes.state,
-          totalPrice: order.attributes.totalPrice,
-          customer: order.attributes.customer.name,
-          city: order.attributes.deliveryAddress.town,
-          deliveryMode: order.attributes.deliveryMode,
-          deliveryCost: order.attributes.deliveryCostForSeller, // 👈 добавили
-          creationDate: new Date(order.attributes.creationDate).toLocaleString("ru-KZ"),
+          orderCode: attrs.code,
+          status: attrs.status,
+          state: attrs.state,
+          totalPrice: attrs.totalPrice,
+          customer: attrs.customer.name,
+          city: attrs.deliveryAddress.town,
+          deliveryMode: attrs.deliveryMode,
+          deliveryCost: attrs.deliveryCostForSeller,
+          creationDate: formatDate(attrs.creationDate),
+          completionDate: formatDate(attrs.completionDate),  // дата выдачи
+          deliveryDate: formatDate(attrs.deliveryDate),      // дата доставки
           items,
         };
       })
